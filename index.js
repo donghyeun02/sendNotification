@@ -67,13 +67,6 @@ exports.handler = async (event, context) => {
           )
         )[0][0];
 
-        const eventInfo = (
-          await connection.query(
-            `SELECT summary, link, start_time startTime, end_time endTime FROM events WHERE slack_user_id = ? AND start_time = ?`,
-            [user.slackUserId, dateTimeString]
-          )
-        )[0][0];
-
         const userInfo = (
           await connection.query(
             `SELECT slack_channel channel FROM webhooks WHERE slack_user_id = ?`,
@@ -81,20 +74,29 @@ exports.handler = async (event, context) => {
           )
         )[0][0];
 
+        const events = (
+          await connection.query(
+            `SELECT summary, link, start_time startTime, end_time endTime FROM events WHERE slack_user_id = ? AND start_time = ?`,
+            [user.slackUserId, dateTimeString]
+          )
+        )[0];
+
         const web = await new WebClient(userBotToken.botToken);
 
-        const startTime = formatDateTime(eventInfo.startTime);
-        const endTime = formatDateTime(eventInfo.endTime);
+        for (const event of events) {
+          const startTime = formatDateTime(event.startTime);
+          const endTime = formatDateTime(event.endTime);
 
-        const eventOpt = {
-          slackChannel: userInfo.channel,
-          color: '2FA86B',
-          title: '🔔 일정 시작 15분 전 알림',
-          summary: `<${eventInfo.link}|*${eventInfo.summary}*>`,
-          text: `일정 시작 : ${startTime}\n일정 종료 : ${endTime}`,
-        };
+          const eventOpt = {
+            slackChannel: userInfo.channel,
+            color: '2FA86B',
+            title: '🔔 일정 시작 15분 전 알림',
+            summary: `<${event.link}|*${event.summary}*>`,
+            text: `일정 시작 : ${startTime}\n일정 종료 : ${endTime}`,
+          };
 
-        await sendSlackMessage(eventOpt, web);
+          await sendSlackMessage(eventOpt, web);
+        }
       }
     }
 
